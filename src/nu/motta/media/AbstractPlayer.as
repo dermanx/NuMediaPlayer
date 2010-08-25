@@ -127,7 +127,7 @@ package nu.motta.media
 		protected function formatTime(time : Number):String
 		{
 			var min : String = Math.floor(time / 60).toString();
-			var sec : String = (Math.floor((time) % 60) < 10) ? "0" + Math.floor((time) % 60).toString() : Math.floor((time) % 60).toString();
+			var sec : String = (Math.floor((time) % 60) < 10) ? "0" + Math.round((time) % 60).toString() : Math.round((time) % 60).toString();
 			min = min.length > 1 ? min : "0" + min;
 			sec = sec.length > 1 ? sec : "0" + sec;
 			return min + ":" + sec;

@@ -1,6 +1,8 @@
 package
 {
 
+	import nu.motta.media.events.CuePointEvent;
+	import nu.motta.media.events.PlayerEvent;
 	import nu.motta.media.type.VideoPlayer;
 
 	import flash.display.MovieClip;
@@ -33,7 +35,7 @@ package
 			setupVideo();
 			setupController();
 			//
-			this.player.load("http://public.lucasmotta.com/files/mediaPlayer/video.flv?" + String(Math.random() * 1000), 5, 45);
+			this.player.load("http://public.lucasmotta.com/files/mediaPlayer/videoCuePoint.flv?" + String(Math.random() * 1000), 5, 46);
 		}
 
 		protected function setupVideo() : void
@@ -41,6 +43,7 @@ package
 			this.player = new VideoPlayer(640, 480, false);
 			this.player.autoPlay = true;
 			this.player.loop = false;
+			this.player.addEventListener(CuePointEvent.CUE_POINT_RECEIVED, onCuePointReceived);
 			addChild(this.player);
 		}
 
@@ -50,6 +53,11 @@ package
 			this.controller.x = 25;
 			this.controller.y = 480 + 23;
 			addChild(this.controller);
+		}
+
+		protected function onCuePointReceived(e : CuePointEvent) : void
+		{
+			trace(e.cuePoint);
 		}
 
 		protected function onAddedToStage(e : Event) : void

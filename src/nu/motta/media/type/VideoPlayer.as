@@ -1,8 +1,11 @@
 package nu.motta.media.type
 {
 
+	import nu.motta.media.utils.CuePointManager;
 	import nu.motta.media.AbstractPlayer;
+	import nu.motta.media.events.CuePointEvent;
 	import nu.motta.media.events.PlayerEvent;
+	import nu.motta.media.utils.CuePoint;
 	import nu.motta.media.utils.PlayerStatus;
 
 	import flash.events.Event;
@@ -50,6 +53,10 @@ package nu.motta.media.type
 		protected var _flushed : Boolean;
 
 		protected var _stopped : Boolean;
+
+		protected var _metaData : Object;
+
+		protected var _cuePointManager : CuePointManager;
 
 
 		// ----------------------------------------------------
@@ -340,6 +347,39 @@ package nu.motta.media.type
 			//
 			super.dispose();
 		}
+		
+		/**
+		 * Seek to the next cue point if it's available
+		 */
+		public function nextCuePoint() : void
+		{
+			if(Boolean(_cuePointManager))
+			{
+				seek(_cuePointManager.getNextCuePoint(this.time).time);
+			}
+		}
+		
+		/**
+		 * Seek to the previous cue point if it's available
+		 */
+		public function previousCuePoint() : void
+		{
+			if(Boolean(_cuePointManager))
+			{
+				seek(_cuePointManager.getPreviousCuePoint(this.time).time);
+			}
+		}
+		
+		/**
+		 * Seek to a specific cue point
+		 */
+		public function gotoCuePoint(cuePointName : String) : void
+		{
+			if(Boolean(_cuePointManager))
+			{
+				seek(_cuePointManager.getCuePointByName(cuePointName).time);
+			}
+		}
 
 		/**
 		 * @private
@@ -348,6 +388,8 @@ package nu.motta.media.type
 		 */
 		public function onMetaData(info : Object):void
 		{
+			_metaData = info;
+
 			if(info.hasOwnProperty("duration"))
 			{
 				_duration = info["duration"];
@@ -361,6 +403,28 @@ package nu.motta.media.type
 					_video.height = _size.height;
 				}
 			}
+			//
+			this.dispatchEvent(new PlayerEvent(PlayerEvent.METADATA_RECEIVED));
+		}
+
+		/**
+		 * @private
+		 * @excludeInherit
+		 * @exclude
+		 */
+		public function onCuePoint(info : Object):void
+		{
+			this.dispatchEvent(new CuePointEvent(CuePointEvent.CUE_POINT_RECEIVED, false, false, new CuePoint(info)));
+		}
+
+		/**
+		 * @private
+		 * @excludeInherit
+		 * @exclude
+		 */
+		public function onXMPData(info : Object):void
+		{
+			_cuePointManager = new CuePointManager(info);
 		}
 
 		// ----------------------------------------------------
@@ -368,12 +432,28 @@ package nu.motta.media.type
 		// ----------------------------------------------------
 		override public function get duration() : Number
 		{
-			return !isNaN(_manualDuration) ? _manualDuration : super.duration;
+			if(_metaData)
+			{
+				if(_metaData.hasOwnProperty("duration"))
+				{
+					return _metaData["duration"];
+				}
+			}
+			if(!isNaN(_manualDuration))
+			{
+				return _manualDuration;
+			}
+			return _duration;
 		}
 
 		override public function get time() : Number
 		{
 			return _netStream.time;
+		}
+
+		public function get metaData() : Object
+		{
+			return _metaData;
 		}
 
 		/**

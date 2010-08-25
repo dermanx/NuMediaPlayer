@@ -33,14 +33,14 @@ package
 			setupVideo();
 			setupController();
 			//
-			this.player.load("http://public.lucasmotta.com/files/mediaPlayer/empty_room.mp3?" + String(Math.random() * 1000), 5, 171);
+			this.player.load("http://public.lucasmotta.com/files/mediaPlayer/sparrows.mp3?" + String(Math.random() * 1000), 5, 171);
 		}
 
 		protected function setupVideo() : void
 		{
 			this.player = new SoundPlayer();
 			this.player.autoPlay = true;
-			this.player.loop = false;
+			this.player.loop = true;
 			addChild(this.player);
 		}
 

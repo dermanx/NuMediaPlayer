@@ -131,25 +131,6 @@ package nu.motta.media.type
 			setStatus(PlayerStatus.STOPPED);
 		}
 
-		protected function getRealDuration() : Number
-		{
-			// Check the ID3 First
-			if(Boolean(_id3))
-			{
-				if(_id3.hasOwnProperty("TLEN"))
-				{
-					return _id3["TLEN"];
-				}
-			}
-			// Try the Manual Duration
-			if(!isNaN(_manualDuration))
-			{
-				return _manualDuration;
-			}
-			// Get the sound length
-			return _sound.length;
-		}
-
 		override protected function applySoundTransform() : void
 		{
 			if(Boolean(_channel))
@@ -174,8 +155,8 @@ package nu.motta.media.type
 		private function onID3Received(e : Event) : void
 		{
 			_id3 = _sound.id3;
-			
-			trace("ID3", _id3["TLEN"]);
+			//
+			this.dispatchEvent(new PlayerEvent(PlayerEvent.ID3_RECEIVED));
 		}
 
 		private function onLoadCompleted(e : Event) : void
@@ -301,7 +282,21 @@ package nu.motta.media.type
 		// ----------------------------------------------------
 		override public function get duration() : Number
 		{
-			return getRealDuration() / 1000;
+			// Check the ID3 First
+			if(Boolean(_id3))
+			{
+				if(_id3.hasOwnProperty("TLEN"))
+				{
+					return parseFloat(_id3["TLEN"]) / 1000;
+				}
+			}
+			// Try the Manual Duration
+			if(!isNaN(_manualDuration))
+			{
+				return _manualDuration / 1000;
+			}
+			// Get the sound length
+			return _sound.length / 1000;
 		}
 
 		override public function get time() : Number
