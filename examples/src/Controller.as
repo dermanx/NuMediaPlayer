@@ -1,15 +1,15 @@
 package
 {
 
-	import nu.motta.media.utils.MediaStatus;
-	import nu.motta.media.events.MediaEvent;
+	import nu.motta.media.utils.PlayerStatus;
+	import nu.motta.media.events.PlayerEvent;
 
 	import flash.events.Event;
 	import flash.geom.Rectangle;
 
 	import assets.AbstractController;
 
-	import nu.motta.media.AbstractMediaPlayer;
+	import nu.motta.media.AbstractPlayer;
 
 	import flash.display.MovieClip;
 	import flash.events.MouseEvent;
@@ -28,7 +28,7 @@ package
 		// ----------------------------------------------------
 		// PRIVATE AND PROTECTED VARIABLES
 		// ----------------------------------------------------
-		protected var player : AbstractMediaPlayer;
+		protected var player : AbstractPlayer;
 
 		protected var dragArea : Rectangle;
 		
@@ -43,7 +43,7 @@ package
 		/**
 		 * @constructor
 		 */
-		public function Controller(player : AbstractMediaPlayer)
+		public function Controller(player : AbstractPlayer)
 		{
 			this.player = player;
 
@@ -57,10 +57,12 @@ package
 		// ----------------------------------------------------
 		protected function setupPlayer() : void
 		{
-			this.player.addEventListener(MediaEvent.STATUS_CHANGED, onStatusChanged);
-			this.player.addEventListener(MediaEvent.VOLUME_CHANGED, onVolumeChanged);
-			this.player.addEventListener(MediaEvent.LOAD_PROGRESS, onLoadProgress);
-			this.player.addEventListener(MediaEvent.BUFFERED, onBuffered);			this.player.addEventListener(MediaEvent.BUFFERING, onBuffering);			this.player.addEventListener(Event.ENTER_FRAME, onSeekUpdate);
+			this.player.addEventListener(PlayerEvent.STATUS_CHANGED, onStatusChanged);
+			this.player.addEventListener(PlayerEvent.VOLUME_CHANGED, onVolumeChanged);
+			this.player.addEventListener(PlayerEvent.LOAD_PROGRESS, onLoadProgress);
+			this.player.addEventListener(PlayerEvent.BUFFERED, onBuffered);
+			this.player.addEventListener(PlayerEvent.BUFFERING, onBuffering);
+			this.player.addEventListener(PlayerEvent.COMPLETED, onMediaCompleted);			this.player.addEventListener(Event.ENTER_FRAME, onSeekUpdate);
 		}
 
 		protected function setupDisplay() : void
@@ -72,6 +74,7 @@ package
 			this.playPause.gotoAndStop(1);
 			this.sound.gotoAndStop(1);
 			this.loaderMask.scaleX = 0;
+			this.scrubBarMask.scaleX = 0;
 			this.scrub.timeTxt.visible = false;
 		}
 
@@ -81,7 +84,10 @@ package
 			setButton(this.playPause, onPlayPauseClick);
 			setButton(this.reset, onStopClick);			setButton(this.sound, onSoundClick);
 			//
-			this.scrub.addEventListener(MouseEvent.MOUSE_DOWN, onScrubStartDrag);
+			this.scrubBar.mouseEnabled = false;
+			this.loaderBar.mouseChildren = false;
+			this.loaderBar.buttonMode = true;
+			this.loaderBar.addEventListener(MouseEvent.MOUSE_DOWN, onScrubBarClick);			this.scrub.addEventListener(MouseEvent.MOUSE_DOWN, onScrubStartDrag);
 		}
 		
 		protected function setButton(mc : MovieClip, clickHandler : Function = null) : void
@@ -110,22 +116,24 @@ package
 			{
 				this.scrub.timeTxt.text = this.player.getFormattedTimeAt((this.scrub.x - this.dragArea.x) / this.dragArea.width);
 			}
+			
+			this.scrubBarMask.scaleX = (this.scrub.x - this.dragArea.x) / this.dragArea.width;
 		}
 		
-		private function onStatusChanged(e : MediaEvent) : void
+		private function onStatusChanged(e : PlayerEvent) : void
 		{
 			switch(this.player.status)
 			{
-				case MediaStatus.PLAYING :
+				case PlayerStatus.PLAYING :
 					this.playPause.gotoAndStop(2);
 					break;
-				case MediaStatus.PAUSED :
-				case MediaStatus.STOPPED :
+				case PlayerStatus.PAUSED :
+				case PlayerStatus.STOPPED :
 					this.playPause.gotoAndStop(1);
 			}
 		}
 		
-		private function onVolumeChanged(e : MediaEvent) : void
+		private function onVolumeChanged(e : PlayerEvent) : void
 		{
 			if(this.player.volume >= .6)
 			{
@@ -141,27 +149,39 @@ package
 			}
 		}
 		
-		private function onBuffering(e : MediaEvent) : void
+		private function onMediaCompleted(e : PlayerEvent) : void
+		{
+			this.player.stop();
+			trace("video is completed");
+		}
+		
+		private function onBuffering(e : PlayerEvent) : void
 		{
 			this.buffering.play();
 			this.buffering.visible = true;
 		}
 
-		private function onBuffered(e : MediaEvent) : void
+		private function onBuffered(e : PlayerEvent) : void
 		{
 			this.buffering.stop();
 			this.buffering.visible = false;
 		}
 		
-		private function onLoadProgress(e : MediaEvent) : void
+		private function onLoadProgress(e : PlayerEvent) : void
 		{
 			this.loaderMask.scaleX = this.player.loadProgress;
+		}
+		
+		private function onScrubBarClick(e : MouseEvent) : void
+		{
+			this.scrub.x = mouseX;
+			onScrubStartDrag(null);
 		}
 
 		private function onScrubStartDrag(e : MouseEvent) : void
 		{
 			this.seeking = true;
-			this.wasPlaying = this.player.status == MediaStatus.PLAYING;
+			this.wasPlaying = this.player.status == PlayerStatus.PLAYING;
 			//
 			this.scrub.timeTxt.visible = true;
 			//
@@ -171,15 +191,14 @@ package
 
 		private function onScrubStopDrag(e : MouseEvent) : void
 		{
-			this.player.seekPercent((this.scrub.x - this.dragArea.x) / this.dragArea.width);
-			//
-			this.seeking = false;
-			this.wasPlaying ? this.player.play() : null;
-			//
 			this.scrub.timeTxt.visible = false;
-			//
 			this.scrub.stopDrag();
 			stage.removeEventListener(MouseEvent.MOUSE_UP, onScrubStopDrag);
+			//
+			this.player.seekPercent((this.scrub.x - this.dragArea.x) / this.dragArea.width);
+			//
+			this.wasPlaying ? this.player.play() : null;
+			this.seeking = false;
 		}
 
 		private function onPlayPauseClick(e : MouseEvent) : void

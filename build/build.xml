@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project name="Create Distribution Files" basedir="../" default="build">
+
+	<!-- IMPORT PROPERTIES -->
+	<property file="build/build.properties" />
+
+	<!-- IMPORT TASKS -->
+	<taskdef resource="flexTasks.tasks" classpath="${flex.tasks}" />
+	
+	<!-- BUILD THE DISTRIBUTION FOLDER -->
+	<target name="build" depends="-replaceTags, -buildSWC"/>
+	
+	<target name="-buildSWC" description="Build a SWC File">
+		<compc output="${basedir}/${distribution.dir}/${distribution.swc.dir}/${distribution.swc.file}">
+			<include-sources dir="${basedir}/${distribution.src.dir}/${source.package}" includes="*" />
+			<source-path path-element="${basedir}/${distribution.src.dir}" />
+		</compc>
+	</target>
+	
+	<target name="-replaceTags" depends="-copySource">
+		<replace dir="${distribution.dir}/${distribution.src.dir}" token="::name::" value="${project.name}"/>
+		<replace dir="${distribution.dir}/${distribution.src.dir}" token="::description::" value="${project.description}"/>
+		<replace dir="${distribution.dir}/${distribution.src.dir}" token="::author::" value="${project.author}"/>
+		<replace dir="${distribution.dir}/${distribution.src.dir}" token="::year::" value="${project.year}"/>
+		<replace dir="${distribution.dir}/${distribution.src.dir}" token="::since::" value="${project.since}"/>
+		<replace dir="${distribution.dir}/${distribution.src.dir}" token="::version::" value="${project.version}"/>
+	</target>
+
+	<target name="-copySource" depends="-mkdir">
+		<copy todir="${distribution.dir}/${distribution.src.dir}">
+			<fileset dir="${source.dir}" includes="**" />
+		</copy>
+	</target>
+	
+	<target name="-mkdir">
+		<delete dir="${distribution.dir}" />
+		
+		<mkdir dir="${distribution.dir}" />
+		<mkdir dir="${distribution.dir}/${distribution.swc.dir}" />
+		<mkdir dir="${distribution.dir}/${distribution.src.dir}" />
+	</target>
+
+</project>

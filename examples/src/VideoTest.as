@@ -1,7 +1,7 @@
 package
 {
 
-	import nu.motta.media.type.MediaVideo;
+	import nu.motta.media.type.VideoPlayer;
 
 	import flash.display.MovieClip;
 	import flash.display.StageScaleMode;
@@ -16,7 +16,7 @@ package
 	{
 
 
-		protected var player : MediaVideo;
+		protected var player : VideoPlayer;
 
 		protected var controller : Controller;
 
@@ -33,12 +33,12 @@ package
 			setupVideo();
 			setupController();
 			//
-			this.player.load("http://public.lucasmotta.com/files/mediaPlayer/video.flv?" + String(Math.random() * 1000), 5);
+			this.player.load("http://public.lucasmotta.com/files/mediaPlayer/video.flv?" + String(Math.random() * 1000), 5, 45);
 		}
 
 		protected function setupVideo() : void
 		{
-			this.player = new MediaVideo(640, 480, false);
+			this.player = new VideoPlayer(640, 480, false);
 			this.player.autoPlay = true;
 			this.player.loop = false;
 			addChild(this.player);
