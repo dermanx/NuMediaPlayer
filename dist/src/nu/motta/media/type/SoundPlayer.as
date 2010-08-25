@@ -1,9 +1,9 @@
 package nu.motta.media.type
 {
 
-	import nu.motta.media.utils.MediaStatus;
-	import nu.motta.media.AbstractMediaPlayer;
-	import nu.motta.media.events.MediaEvent;
+	import nu.motta.media.utils.PlayerStatus;
+	import nu.motta.media.AbstractPlayer;
+	import nu.motta.media.events.PlayerEvent;
 	import flash.media.ID3Info;
 	import flash.events.Event;
 	import flash.events.IOErrorEvent;
@@ -21,7 +21,7 @@ package nu.motta.media.type
 	 * @since Aug 23, 2010
 	 * @version 1.0
 	 */
-	public class MediaSound extends AbstractMediaPlayer
+	public class SoundPlayer extends AbstractPlayer
 	{
 
 
@@ -40,6 +40,8 @@ package nu.motta.media.type
 		protected var _checkingBuffer : Boolean;
 
 		protected var _id3 : ID3Info;
+		
+		protected var _userDuration : Number;
 
 
 		// ----------------------------------------------------
@@ -48,7 +50,7 @@ package nu.motta.media.type
 		/**
 		 * @constructor
 		 */
-		public function MediaSound()
+		public function SoundPlayer()
 		{
 			setupSound();
 		}
@@ -73,7 +75,7 @@ package nu.motta.media.type
 				_channel.removeEventListener(Event.SOUND_COMPLETE, onPlayCompleted);
 				_channel = null;
 			}
-			_channel = _sound.play(startTime);
+			_channel = _sound.play(startTime, 0, _soundTransform);
 			_channel.addEventListener(Event.SOUND_COMPLETE, onPlayCompleted);
 			
 			if(forceStop)
@@ -119,23 +121,14 @@ package nu.motta.media.type
 				_pausedPosition = 0;
 				playSound(_pausedPosition);
 				//
-				this.dispatchEvent(new MediaEvent(MediaEvent.LOOP));
+				this.dispatchEvent(new PlayerEvent(PlayerEvent.LOOP));
 				//
 				return;
 			}
 			//
-			this.dispatchEvent(new MediaEvent(MediaEvent.COMPLETED));
+			this.dispatchEvent(new PlayerEvent(PlayerEvent.COMPLETED));
 			//
-			setStatus(MediaStatus.STOPPED);
-		}
-
-		protected function getRealDuration() : Number
-		{
-			if(_id3 == null)
-			{
-				return _sound.length;
-			}
-			return _id3.hasOwnProperty("TLEN") ? _id3["TLEN"] : _sound.length;
+			setStatus(PlayerStatus.STOPPED);
 		}
 
 		override protected function applySoundTransform() : void
@@ -162,13 +155,15 @@ package nu.motta.media.type
 		private function onID3Received(e : Event) : void
 		{
 			_id3 = _sound.id3;
+			//
+			this.dispatchEvent(new PlayerEvent(PlayerEvent.ID3_RECEIVED));
 		}
 
 		private function onLoadCompleted(e : Event) : void
 		{
 			stopBufferCheck();
 			//
-			this.dispatchEvent(new MediaEvent(MediaEvent.LOAD_COMPLETED));
+			this.dispatchEvent(new PlayerEvent(PlayerEvent.LOAD_COMPLETED));
 		}
 
 		private function onLoadProgress(e : ProgressEvent) : void
@@ -177,32 +172,32 @@ package nu.motta.media.type
 			_bytesTotal = e.bytesTotal;
 			_loadProgress = _bytesLoaded / _bytesTotal;
 			//
-			this.dispatchEvent(new MediaEvent(MediaEvent.LOAD_PROGRESS));
+			this.dispatchEvent(new PlayerEvent(PlayerEvent.LOAD_PROGRESS));
 		}
 
 		private function onLoadError(e : IOErrorEvent) : void
 		{
-			this.dispatchEvent(new MediaEvent(MediaEvent.LOAD_ERROR));
+			this.dispatchEvent(new PlayerEvent(PlayerEvent.LOAD_ERROR));
 		}
 
 		// ----------------------------------------------------
 		// PUBLIC METHODS
 		// ----------------------------------------------------
-		override public function load(file : String, bufferTime : Number = 5) : void
+		override public function load(file : String, bufferTime : Number = 5, manualDuration : Number = undefined) : void
 		{
-			super.load(file, bufferTime);
+			super.load(file, bufferTime, manualDuration * 1000);
 
 			startSound();
 		}
 
 		override public function play() : void
 		{
-			if(this.status == MediaStatus.PLAYING)
+			if(this.status == PlayerStatus.PLAYING)
 			{
 				return;
 			}
 
-			if(this.status == MediaStatus.STOPPED)
+			if(this.status == PlayerStatus.STOPPED)
 			{
 				_pausedPosition = 0;
 			}
@@ -213,7 +208,7 @@ package nu.motta.media.type
 
 		override public function pause() : void
 		{
-			if(this.status == MediaStatus.PAUSED)
+			if(this.status == PlayerStatus.PAUSED)
 			{
 				return;
 			}
@@ -229,7 +224,7 @@ package nu.motta.media.type
 
 		override public function stop() : void
 		{
-			if(this.status == MediaStatus.STOPPED)
+			if(this.status == PlayerStatus.STOPPED)
 			{
 				return;
 			}
@@ -287,7 +282,21 @@ package nu.motta.media.type
 		// ----------------------------------------------------
 		override public function get duration() : Number
 		{
-			return getRealDuration() / 1000;
+			// Check the ID3 First
+			if(Boolean(_id3))
+			{
+				if(_id3.hasOwnProperty("TLEN"))
+				{
+					return parseFloat(_id3["TLEN"]) / 1000;
+				}
+			}
+			// Try the Manual Duration
+			if(!isNaN(_manualDuration))
+			{
+				return _manualDuration / 1000;
+			}
+			// Get the sound length
+			return _sound.length / 1000;
 		}
 
 		override public function get time() : Number
@@ -298,6 +307,14 @@ package nu.motta.media.type
 		override public function get timeProgress() : Number
 		{
 			return Boolean(_channel) ? this.time / this.duration : 0;
+		}
+		
+		/**
+		 * Return the ID3 Information
+		 */
+		public function get id3() : ID3Info
+		{
+			return _id3;
 		}
 	}
 }

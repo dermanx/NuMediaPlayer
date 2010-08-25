@@ -1,8 +1,8 @@
 package nu.motta.media
 {
 
-	import nu.motta.media.events.MediaEvent;
-	import nu.motta.media.utils.MediaStatus;
+	import nu.motta.media.events.PlayerEvent;
+	import nu.motta.media.utils.PlayerStatus;
 
 	import flash.display.Sprite;
 	import flash.media.SoundTransform;
@@ -15,7 +15,7 @@ package nu.motta.media
 	 * @since Aug 23, 2010
 	 * @version 1.0
 	 */
-	public class AbstractMediaPlayer extends Sprite
+	public class AbstractPlayer extends Sprite
 	{
 
 
@@ -30,7 +30,7 @@ package nu.motta.media
 		/**
 		 * Status variables
 		 */
-		protected var _status : String = MediaStatus.STOPPED;
+		protected var _status : String = PlayerStatus.STOPPED;
 
 		protected var _buffering : Boolean = false;
 
@@ -54,6 +54,8 @@ package nu.motta.media
 		protected var _timeProgress : Number = 0;
 
 		protected var _duration : Number = 0;
+		
+		protected var _manualDuration : Number;
 
 		protected var _bufferTime : Number;
 
@@ -77,7 +79,7 @@ package nu.motta.media
 		/**
 		 * @constructor
 		 */
-		public function AbstractMediaPlayer()
+		public function AbstractPlayer()
 		{
 			_soundTransform = new SoundTransform();
 		}
@@ -95,18 +97,18 @@ package nu.motta.media
 			_status = value;
 			switch(value)
 			{
-				case MediaStatus.PLAYING:
-					this.dispatchEvent(new MediaEvent(MediaEvent.PLAY));
+				case PlayerStatus.PLAYING:
+					this.dispatchEvent(new PlayerEvent(PlayerEvent.PLAY));
 					break;
-				case MediaStatus.PAUSED:
-					this.dispatchEvent(new MediaEvent(MediaEvent.PAUSE));
+				case PlayerStatus.PAUSED:
+					this.dispatchEvent(new PlayerEvent(PlayerEvent.PAUSE));
 					break;
-				case MediaStatus.STOPPED:
-					this.dispatchEvent(new MediaEvent(MediaEvent.STOP));
+				case PlayerStatus.STOPPED:
+					this.dispatchEvent(new PlayerEvent(PlayerEvent.STOP));
 					break;
 			}
 			//
-			this.dispatchEvent(new MediaEvent(MediaEvent.STATUS_CHANGED));
+			this.dispatchEvent(new PlayerEvent(PlayerEvent.STATUS_CHANGED));
 		}
 
 		protected function setBufferStatus(isBuffering : Boolean) : void
@@ -115,7 +117,7 @@ package nu.motta.media
 				return;
 			_buffering = isBuffering;
 
-			this.dispatchEvent(new MediaEvent(this.buffering ? MediaEvent.BUFFERING : MediaEvent.BUFFERED));
+			this.dispatchEvent(new PlayerEvent(this.buffering ? PlayerEvent.BUFFERING : PlayerEvent.BUFFERED));
 		}
 
 		protected function applySoundTransform() : void
@@ -125,7 +127,7 @@ package nu.motta.media
 		protected function formatTime(time : Number):String
 		{
 			var min : String = Math.floor(time / 60).toString();
-			var sec : String = (Math.floor((time) % 60) < 10) ? "0" + Math.floor((time) % 60).toString() : Math.floor((time) % 60).toString();
+			var sec : String = (Math.floor((time) % 60) < 10) ? "0" + Math.round((time) % 60).toString() : Math.round((time) % 60).toString();
 			min = min.length > 1 ? min : "0" + min;
 			sec = sec.length > 1 ? sec : "0" + sec;
 			return min + ":" + sec;
@@ -139,11 +141,13 @@ package nu.motta.media
 		 * 
 		 * @param file					File URL
 		 * @param bufferTime			Buffer time (in seconds)
+		 * @param manualDuration		Set the media duration (in seconds) manually. Best approach to handle sound files, because they're buggy.<br>If you don't set this, the duration will be defined by the media automatically.
 		 */
-		public function load(file : String, bufferTime : Number = 5) : void
+		public function load(file : String, bufferTime : Number = 5, manualDuration : Number = undefined) : void
 		{
 			_file = file;
 			_bufferTime = bufferTime;
+			_manualDuration = manualDuration;
 		}
 
 		/**
@@ -151,7 +155,7 @@ package nu.motta.media
 		 */
 		public function play() : void
 		{
-			setStatus(MediaStatus.PLAYING);
+			setStatus(PlayerStatus.PLAYING);
 		}
 
 		/**
@@ -159,7 +163,7 @@ package nu.motta.media
 		 */
 		public function pause() : void
 		{
-			setStatus(MediaStatus.PAUSED);
+			setStatus(PlayerStatus.PAUSED);
 		}
 
 		/**
@@ -167,7 +171,7 @@ package nu.motta.media
 		 */
 		public function togglePause() : void
 		{
-			this.status == MediaStatus.PLAYING ? pause() : play();
+			this.status == PlayerStatus.PLAYING ? pause() : play();
 		}
 
 		/**
@@ -175,7 +179,7 @@ package nu.motta.media
 		 */
 		public function stop() : void
 		{
-			setStatus(MediaStatus.STOPPED);
+			setStatus(PlayerStatus.STOPPED);
 		}
 
 		/**
@@ -284,7 +288,7 @@ package nu.motta.media
 			//
 			applySoundTransform();
 			//
-			this.dispatchEvent(new MediaEvent(MediaEvent.VOLUME_CHANGED));
+			this.dispatchEvent(new PlayerEvent(PlayerEvent.VOLUME_CHANGED));
 		}
 
 		/**
@@ -305,7 +309,7 @@ package nu.motta.media
 			//
 			applySoundTransform();
 			//
-			this.dispatchEvent(new MediaEvent(MediaEvent.VOLUME_CHANGED));
+			this.dispatchEvent(new PlayerEvent(PlayerEvent.VOLUME_CHANGED));
 		}
 		
 		public function get pan() : Number

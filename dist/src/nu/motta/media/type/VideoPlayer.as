@@ -1,9 +1,12 @@
 package nu.motta.media.type
 {
 
-	import nu.motta.media.AbstractMediaPlayer;
-	import nu.motta.media.events.MediaEvent;
-	import nu.motta.media.utils.MediaStatus;
+	import nu.motta.media.utils.CuePointManager;
+	import nu.motta.media.AbstractPlayer;
+	import nu.motta.media.events.CuePointEvent;
+	import nu.motta.media.events.PlayerEvent;
+	import nu.motta.media.utils.CuePoint;
+	import nu.motta.media.utils.PlayerStatus;
 
 	import flash.events.Event;
 	import flash.events.NetStatusEvent;
@@ -23,7 +26,7 @@ package nu.motta.media.type
 	 * @since Aug 23, 2010
 	 * @version 1.0
 	 */
-	public class MediaVideo extends AbstractMediaPlayer
+	public class VideoPlayer extends AbstractPlayer
 	{
 
 
@@ -51,6 +54,10 @@ package nu.motta.media.type
 
 		protected var _stopped : Boolean;
 
+		protected var _metaData : Object;
+
+		protected var _cuePointManager : CuePointManager;
+
 
 		// ----------------------------------------------------
 		// CONSTRUCTOR
@@ -58,7 +65,7 @@ package nu.motta.media.type
 		/**
 		 * @constructor
 		 */
-		public function MediaVideo(width : int, height : int, autoSize : Boolean = false)
+		public function VideoPlayer(width : int, height : int, autoSize : Boolean = false)
 		{
 			_size = new Rectangle(0, 0, width, height);
 			_autoSize = autoSize;
@@ -142,14 +149,14 @@ package nu.motta.media.type
 				_netStream.seek(0);
 				_netStream.resume();
 				//
-				this.dispatchEvent(new MediaEvent(MediaEvent.LOOP));
+				this.dispatchEvent(new PlayerEvent(PlayerEvent.LOOP));
 				//
 				return;
 			}
 			//
-			this.dispatchEvent(new MediaEvent(MediaEvent.COMPLETED));
+			this.dispatchEvent(new PlayerEvent(PlayerEvent.COMPLETED));
 			//
-			setStatus(MediaStatus.STOPPED);
+			setStatus(PlayerStatus.STOPPED);
 		}
 
 		override protected function applySoundTransform() : void
@@ -219,7 +226,7 @@ package nu.motta.media.type
 		 */
 		protected function onLoadError(e : Event) : void
 		{
-			this.dispatchEvent(new MediaEvent(MediaEvent.LOAD_ERROR));
+			this.dispatchEvent(new PlayerEvent(PlayerEvent.LOAD_ERROR));
 		}
 
 		/**
@@ -231,11 +238,11 @@ package nu.motta.media.type
 			_bytesTotal = _netStream.bytesTotal;
 			_loadProgress = _bytesLoaded / _bytesTotal;
 
-			this.dispatchEvent(new MediaEvent(MediaEvent.LOAD_PROGRESS));
+			this.dispatchEvent(new PlayerEvent(PlayerEvent.LOAD_PROGRESS));
 
 			if(_loadProgress == 1)
 			{
-				this.dispatchEvent(new MediaEvent(MediaEvent.LOAD_COMPLETED));
+				this.dispatchEvent(new PlayerEvent(PlayerEvent.LOAD_COMPLETED));
 
 				resetTimer(_timerLoad, false);
 				return;
@@ -245,20 +252,20 @@ package nu.motta.media.type
 		// ----------------------------------------------------
 		// PUBLIC METHODS
 		// ----------------------------------------------------
-		override public function load(file : String, bufferTime : Number = 5) : void
+		override public function load(file : String, bufferTime : Number = 5, manualDuration : Number = undefined) : void
 		{
-			super.load(file, bufferTime);
+			super.load(file, bufferTime, manualDuration);
 
 			Boolean(_netConnection) ? startLoad() : setupConnection();
 		}
 
 		override public function play() : void
 		{
-			if(this.status == MediaStatus.PLAYING)
+			if(this.status == PlayerStatus.PLAYING)
 			{
 				return;
 			}
-			if(this.status == MediaStatus.STOPPED)
+			if(this.status == PlayerStatus.STOPPED)
 			{
 				_netStream.seek(0);
 			}
@@ -269,7 +276,7 @@ package nu.motta.media.type
 
 		override public function pause() : void
 		{
-			if(this.status == MediaStatus.PAUSED)
+			if(this.status == PlayerStatus.PAUSED)
 			{
 				return;
 			}
@@ -281,7 +288,7 @@ package nu.motta.media.type
 
 		override public function stop() : void
 		{
-			if(this.status == MediaStatus.STOPPED)
+			if(this.status == PlayerStatus.STOPPED)
 			{
 				return;
 			}
@@ -294,15 +301,15 @@ package nu.motta.media.type
 
 		override public function seek(time : Number) : void
 		{
-			if(this.status == MediaStatus.STOPPED)
+			if(this.status == PlayerStatus.STOPPED)
 			{
-				setStatus(MediaStatus.PAUSED);
+				setStatus(PlayerStatus.PAUSED);
 			}
 			_netStream.seek(time);
 
 			super.seek(time);
 		}
-			
+
 		override public function dispose() : void
 		{
 			// Remove NetStream
@@ -340,6 +347,39 @@ package nu.motta.media.type
 			//
 			super.dispose();
 		}
+		
+		/**
+		 * Seek to the next cue point if it's available
+		 */
+		public function nextCuePoint() : void
+		{
+			if(Boolean(_cuePointManager))
+			{
+				seek(_cuePointManager.getNextCuePoint(this.time).time);
+			}
+		}
+		
+		/**
+		 * Seek to the previous cue point if it's available
+		 */
+		public function previousCuePoint() : void
+		{
+			if(Boolean(_cuePointManager))
+			{
+				seek(_cuePointManager.getPreviousCuePoint(this.time).time);
+			}
+		}
+		
+		/**
+		 * Seek to a specific cue point
+		 */
+		public function gotoCuePoint(cuePointName : String) : void
+		{
+			if(Boolean(_cuePointManager))
+			{
+				seek(_cuePointManager.getCuePointByName(cuePointName).time);
+			}
+		}
 
 		/**
 		 * @private
@@ -348,6 +388,8 @@ package nu.motta.media.type
 		 */
 		public function onMetaData(info : Object):void
 		{
+			_metaData = info;
+
 			if(info.hasOwnProperty("duration"))
 			{
 				_duration = info["duration"];
@@ -361,16 +403,59 @@ package nu.motta.media.type
 					_video.height = _size.height;
 				}
 			}
+			//
+			this.dispatchEvent(new PlayerEvent(PlayerEvent.METADATA_RECEIVED));
+		}
+
+		/**
+		 * @private
+		 * @excludeInherit
+		 * @exclude
+		 */
+		public function onCuePoint(info : Object):void
+		{
+			this.dispatchEvent(new CuePointEvent(CuePointEvent.CUE_POINT_RECEIVED, false, false, new CuePoint(info)));
+		}
+
+		/**
+		 * @private
+		 * @excludeInherit
+		 * @exclude
+		 */
+		public function onXMPData(info : Object):void
+		{
+			_cuePointManager = new CuePointManager(info);
 		}
 
 		// ----------------------------------------------------
 		// GETTERS AND SETTERS
 		// ----------------------------------------------------
+		override public function get duration() : Number
+		{
+			if(_metaData)
+			{
+				if(_metaData.hasOwnProperty("duration"))
+				{
+					return _metaData["duration"];
+				}
+			}
+			if(!isNaN(_manualDuration))
+			{
+				return _manualDuration;
+			}
+			return _duration;
+		}
+
 		override public function get time() : Number
 		{
 			return _netStream.time;
 		}
-		
+
+		public function get metaData() : Object
+		{
+			return _metaData;
+		}
+
 		/**
 		 * Smooth the Video
 		 */

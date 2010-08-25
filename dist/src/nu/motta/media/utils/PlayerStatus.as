@@ -5,7 +5,7 @@ package nu.motta.media.utils
 	 * @since Aug 23, 2010
 	 * @version 1.0
 	 */
-	public class MediaStatus
+	public class PlayerStatus
 	{
 		
 		public static const PLAYING : String = "playing";
